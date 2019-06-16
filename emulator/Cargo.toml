@@ -1,7 +1,12 @@
 [package]
-name = "emuchip8"
+name = "emulator"
 version = "0.1.0"
 authors = ["Clement Magnard <magnar_c@epita.fr>"]
 edition = "2018"
 
 [dependencies]
+
+rand = "0.4.x"
+queues = "1.0.x"
+sdl2 = "0.32.x"
+ctrlc = "3.1.3"
