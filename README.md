@@ -12,7 +12,7 @@ To begin with this project you just could clone it from github.
 
 ## Disassembler
 
-to disassemble a chip8 programm:
+To disassemble a chip8 program:
 ```
 cd disassembler
 cargo run <chip8-rom>
@@ -28,7 +28,7 @@ For the moment the default scale of the screen is 3.
 I will add a way to control this scale via the command line.
 
 The emulator does not have full support of a real Chip8 machine.
-Missing feature:
+Missing features:
 - Timer
 - Keyboard inputs
 - Sound
