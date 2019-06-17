@@ -23,7 +23,7 @@ fn main() -> Result<(), std::io::Error> {
         for (i, instr) in instructions.iter().enumerate() {
             machine.write_mem((512 + i) as u16, *instr);
         }
-        while true {
+        loop {
             let pc = machine.pc();
             let first_byte = machine.read_mem(pc as u16);
             let sec_byte = machine.read_mem((pc + 1) as u16);

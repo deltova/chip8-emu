@@ -7,6 +7,8 @@ use std::fmt;
 use sdl2::video::Window;
 use sdl2::render::Canvas; 
 use queues::*;
+use std::vec::Vec;
+use std::thread;
 const SIZE_INSTR: usize = 2;
 
 struct Register {
@@ -142,6 +144,7 @@ impl Machine {
         let x = self.get_reg(reg1 as usize);
         let y = self.get_reg(reg2 as usize);
         let i = self.get_i();
+        let mut rectangles = Vec::new(); 
         // for each row of the sprite
         for row in 0..n {
             // get line of pixel from memory
@@ -152,11 +155,16 @@ impl Machine {
                 // mask all the bits expect the current one 
                 let pixel = line & mask;
                 //set pixel
-                sdl::draw_pixel(pixel != 0, x + col, y + row, &mut self.canvas);
+                if pixel != 0 {
+                    rectangles.push(sdl::draw_pixel(pixel != 0, x + col, y + row, &mut self.canvas));
+                }
                 // shift the mask to the left
                 mask = mask >> 1;
             }
         }
+        self.canvas.fill_rects(&rectangles);
+        self.canvas.present();
+        thread::sleep_ms(20);
     }
     pub fn dump(&self) {
         print!("{}", self);
