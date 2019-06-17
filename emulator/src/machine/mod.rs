@@ -9,7 +9,10 @@ use sdl2::render::Canvas;
 use queues::*;
 use std::vec::Vec;
 use std::thread;
+use std::time::{Duration, Instant};
 const SIZE_INSTR: usize = 2;
+// 60Hz
+static REFRESH_RATE: u32 = 1000 / 60;
 
 struct Register {
     data :u8,
@@ -27,6 +30,7 @@ pub struct Machine {
     pc : usize,
     canvas : Canvas<Window>,
     sdl_context : sdl2::Sdl,
+    screen_timer : Instant,
 }
 
 impl Clone for Register {
@@ -74,6 +78,7 @@ impl Default for Machine {
             pc: 512,
             canvas: canvas,
             sdl_context: context,
+            screen_timer: Instant::now(),
         };
         machine
     }
@@ -164,7 +169,11 @@ impl Machine {
         }
         self.canvas.fill_rects(&rectangles);
         self.canvas.present();
-        thread::sleep_ms(20);
+        let duration = self.screen_timer.elapsed().as_millis() as u32;
+        if (REFRESH_RATE > duration) {
+            thread::sleep_ms(REFRESH_RATE - duration);
+        }
+        self.screen_timer = Instant::now();
     }
     pub fn dump(&self) {
         print!("{}", self);
