@@ -8,8 +8,8 @@ use sdl2::video::Window;
 use sdl2::render::Canvas; 
 use queues::*;
 use std::vec::Vec;
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
+use std::time::Duration;
 const SIZE_INSTR: usize = 2;
 // 60Hz
 static REFRESH_RATE: u32 = 1000 / 60;
@@ -87,9 +87,9 @@ impl fmt::Display for Machine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "register i: 0x{:X}\npc: {}\ngeneral registers\n",
                self.reg_i,
-               self.pc);
+               self.pc).expect("failed writing on stdout");
         for (i, reg) in self.registers.iter().enumerate() {
-            write!(f, "reg{} = {}\n", i, reg);
+            write!(f, "reg{} = {}\n", i, reg).expect("failed writing on stdout");
         }
         Ok(())
     }
@@ -132,7 +132,7 @@ impl Machine {
         self.memory.read_mem(idx)
     }
     pub fn call(&mut self, addr: u16) {
-        self.stack.add(self.pc);
+        self.stack.add(self.pc).expect("failed adding in stack vector");
         self.pc = addr as usize;
     }
 
@@ -153,25 +153,27 @@ impl Machine {
         // for each row of the sprite
         for row in 0..n {
             // get line of pixel from memory
-            let mut line = self.read_mem(i + row as u16);
+            let line = self.read_mem(i + row as u16);
             // go through each pixel of the line
             let mut mask = 1 << 7;
-            for col in (0..8) {
+            for col in 0..8 {
                 // mask all the bits expect the current one 
                 let pixel = line & mask;
                 //set pixel
                 if pixel != 0 {
-                    rectangles.push(sdl::draw_pixel(pixel != 0, x + col, y + row, &mut self.canvas));
+                    rectangles.push(sdl::draw_pixel(x + col, y + row, &mut self.canvas));
                 }
                 // shift the mask to the left
                 mask = mask >> 1;
             }
         }
-        self.canvas.fill_rects(&rectangles);
+        self.canvas.fill_rects(&rectangles).expect("failed rendering rects for texture");
         self.canvas.present();
         let duration = self.screen_timer.elapsed().as_millis() as u32;
-        if (REFRESH_RATE > duration) {
-            thread::sleep_ms(REFRESH_RATE - duration);
+        // dont sleep if the rendering time is greater than the refresh rate
+        if REFRESH_RATE > duration {
+            let time_to_sleep = Duration::from_millis((REFRESH_RATE - duration) as u64);
+            std::thread::sleep(time_to_sleep);
         }
         self.screen_timer = Instant::now();
     }

@@ -31,7 +31,6 @@ fn main() -> Result<(), std::io::Error> {
             dispatch_interpretor(instruction, &mut machine);
         }
     }
-    return Ok(())
 }
 
 fn dispatch_interpretor(instruction: u16, machine: &mut Machine) {
@@ -41,7 +40,7 @@ fn dispatch_interpretor(instruction: u16, machine: &mut Machine) {
         (0, b, c, d) => match (b, c, d) {
                 (0, 0xE, 0) => machine.clear_screen(),
                 (0, 0xE, 0xE) => machine.returner(),
-                (b, c, d) => println!("instruction call RCA implemented"),
+                (_, _, _) => println!("instruction call RCA implemented"),
             }
         (1, b, c, d) => {
                             machine.set_pc((b << 8 | c << 4 | d) as u16);
@@ -52,34 +51,33 @@ fn dispatch_interpretor(instruction: u16, machine: &mut Machine) {
                             return;
                         },
 
-        (3 ... 5, b, c, d) => condition(instr_tuple, machine), 
+        (3 ... 5, _, _, _) => condition(instr_tuple, machine), 
         // set reg
         (6, b, c, d) => machine.set_reg(b as usize, (c << 4 | d) as u8),
         // += reg
         (7, b, c, d) => machine.set_reg(b as usize,
                                         machine.get_reg(b as usize) + (c << 4 | d) as u8),
         (8, b, c, d) => match (b, c, d) {
-                (b, c, 0 ... 7) => setter_regs(instr_tuple, machine),
-                (b, c, e) => setter_regs(instr_tuple, machine),
-                _  => println!("instruction not implemented"),
+                (_, _, 0 ... 7) => setter_regs(instr_tuple, machine),
+                (_, _, _) => setter_regs(instr_tuple, machine),
             }
-        (9, b, c, 0) => condition(instr_tuple, machine),
+        (9, _, _, 0) => condition(instr_tuple, machine),
         (0xA, b, c, d) => machine.set_i((b << 8| c << 4 | d) as u16),
         (0xB , b, c, d) => machine.set_pc((b << 8| c << 4 | d) as u16),
-        (0xC , b, c, d) => random_instr(instr_tuple, machine),
+        (0xC , _, _, _) => random_instr(instr_tuple, machine),
         (0xD , b, c, d) => machine.draw(b as u8, c as u8, d as u8),
-        (0xE , b, 9, 0xE) => println!("instruction key eq implemented"),
-        (0xE , b, 0xA, 1) => println!("instruction key diff implemented"),
-        (0xF , b, 0, 7) => println!("instruction get delay implemented"),
-        (0xF , b, 0, 0xA) => println!("instruction get_key implemented"),
-        (0xF , b, 1, 5) => println!("instruction timer implemented"),
-        (0xF , b, 1, 8) => println!("instruction sound implemented"),
+        (0xE , _, 9, 0xE) => println!("instruction key eq implemented"),
+        (0xE , _, 0xA, 1) => println!("instruction key diff implemented"),
+        (0xF , _, 0, 7) => println!("instruction get delay implemented"),
+        (0xF , _, 0, 0xA) => println!("instruction get_key implemented"),
+        (0xF , _, 1, 5) => println!("instruction timer implemented"),
+        (0xF , _, 1, 8) => println!("instruction sound implemented"),
         (0xF , b, 1, 0xE) => machine.set_i(machine.get_i() + machine.get_reg(b as usize) as u16),
-        (0xF , b, 2, 9) => println!("instruction load sprite implemented"),
-        (0xF , b, 3, 3) => println!("instruction BCD implemented"),
+        (0xF , _, 2, 9) => println!("instruction load sprite implemented"),
+        (0xF , _, 3, 3) => println!("instruction BCD implemented"),
         (0xF , b, 5, 5) => reg_dump(b as u8, machine),
         (0xF , b, 6, 5) => reg_load(b as u8, machine),
-        (a, b, c, d) => process::exit(0),
+        (_, _, _, _) => process::exit(0),
     }
     machine.incr_pc();
 }
