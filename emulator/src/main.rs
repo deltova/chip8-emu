@@ -1,35 +1,65 @@
+extern crate clap;
+
 mod machine;
+
+use clap::{App, Arg, SubCommand};
+use ctrlc;
 use machine::Machine;
+use machine::START_ADDR;
+use rand::Rng;
 use std::env;
 use std::fs;
 use std::io::{Error, ErrorKind};
 use std::process;
-use rand::Rng;
-use ctrlc;
 
 fn main() -> Result<(), std::io::Error> {
     // exit if ctrl-c is received
     ctrlc::set_handler(move || {
         process::exit(0);
     }).expect("Error setting Ctrl-C handler");
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        println!("too many or not enough args provided");
-        return Err(Error::new(ErrorKind::Other, "perdu"))
+    let matches = App::new("CHIP8")
+                        .version("1.0")
+                        .author("Clement Magnard")
+                        .about("Emulate Chip 8 behavior")
+                        .arg(Arg::with_name("scale")
+                                    .short("s")
+                                    .long("scale")
+                                    .value_name("SCALE")
+                                    .help("Set scale size for the screen")
+                                    .takes_value(true))
+                        .arg(Arg::with_name("debug")
+                                    .short("d")
+                                    .long("debug")
+                                    .help("Turn debugging information on"))
+                        .arg(Arg::with_name("rom")
+                                    .help("Input rom for the emulator")
+                                    .index(1)
+                                    .required(true))
+                        .get_matches();
+
+    let mut scale = 3;
+    if let Some(o) = matches.value_of("scale") {
+        scale = o.parse::<u32>().unwrap();
     }
-    else {
-        let mut machine : Machine = Machine::default();
-        let instructions = fs::read(&args[1]).expect("Unable to read file");
-        for (i, instr) in instructions.iter().enumerate() {
-            machine.write_mem((512 + i) as u16, *instr);
-        }
-        loop {
-            let pc = machine.pc();
-            let first_byte = machine.read_mem(pc as u16);
-            let sec_byte = machine.read_mem((pc + 1) as u16);
-            let instruction : u16 = (first_byte as u16) << 8 | (sec_byte as u16); 
-            dispatch_interpretor(instruction, &mut machine);
-        }
+
+    let debugging = matches.is_present("debug");
+
+    let mut file = "";
+    if let Some(c) = matches.value_of("rom") {
+         file = c;
+    }
+
+    let mut machine : Machine = Machine::default();
+    let instructions = fs::read(&file).expect("Unable to read file");
+    for (i, instr) in instructions.iter().enumerate() {
+        machine.write_mem((START_ADDR + i) as u16, *instr);
+    }
+    loop {
+        let pc = machine.pc();
+        let first_byte = machine.read_mem(pc as u16);
+        let sec_byte = machine.read_mem((pc + 1) as u16);
+        let instruction : u16 = (first_byte as u16) << 8 | (sec_byte as u16); 
+        dispatch_interpretor(instruction, &mut machine);
     }
 }
 
@@ -84,10 +114,9 @@ fn dispatch_interpretor(instruction: u16, machine: &mut Machine) {
 
 fn reg_dump(reg_number: u8, machine: &mut Machine) {
     let base_addr = machine.get_i();
-    for i in 0..reg_number + 1{
+    for i in 0..reg_number + 1 {
         machine.write_mem(base_addr + i as u16, machine.get_reg(i as usize));
     }
-
 }
 
 fn reg_load(reg_number: u8, machine: &mut Machine) {

@@ -10,6 +10,7 @@ use queues::*;
 use std::vec::Vec;
 use std::time::Instant;
 use std::time::Duration;
+pub const START_ADDR: usize = 512;
 const SIZE_INSTR: usize = 2;
 // 60Hz
 static REFRESH_RATE: u32 = 1000 / 60;
@@ -26,7 +27,7 @@ pub struct Machine {
     reg_i : u16,
     registers : Vec<Register>,
     memory: Memory,
-    stack : Queue<usize>,
+    stack : Vec<usize>,
     pc : usize,
     canvas : Canvas<Window>,
     sdl_context : sdl2::Sdl,
@@ -72,10 +73,10 @@ impl Default for Machine {
         let (canvas, context) = sdl::init_sdl();
         let machine = Machine {
             registers:  vec![Register::default(); 17],
-            stack:  queue![],
+            stack:  vec![0, 24],
             reg_i: 0,
             memory: Memory::default(),
-            pc: 512,
+            pc: START_ADDR,
             canvas: canvas,
             sdl_context: context,
             screen_timer: Instant::now(),
@@ -132,13 +133,13 @@ impl Machine {
         self.memory.read_mem(idx)
     }
     pub fn call(&mut self, addr: u16) {
-        self.stack.add(self.pc).expect("failed adding in stack vector");
-        self.pc = addr as usize;
+        self.stack.push(self.pc);
+        self.pc = addr as usize + START_ADDR;
     }
 
     pub fn returner(&mut self) {
-        let addr_ret = self.stack.remove().expect("cant return without a first call");
-        self.pc = addr_ret;
+        let addr_ret = self.stack.pop().expect("cant return without a first call");
+        self.pc = START_ADDR;
     }
 
     pub fn clear_screen(&mut self) {
