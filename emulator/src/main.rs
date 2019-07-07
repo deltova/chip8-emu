@@ -1,8 +1,8 @@
 extern crate clap;
 
 mod machine;
+mod opt;
 
-use clap::{App, Arg, SubCommand};
 use ctrlc;
 use machine::Machine;
 use machine::START_ADDR;
@@ -17,40 +17,9 @@ fn main() -> Result<(), std::io::Error> {
     ctrlc::set_handler(move || {
         process::exit(0);
     }).expect("Error setting Ctrl-C handler");
-    let matches = App::new("CHIP8")
-                        .version("1.0")
-                        .author("Clement Magnard")
-                        .about("Emulate Chip 8 behavior")
-                        .arg(Arg::with_name("scale")
-                                    .short("s")
-                                    .long("scale")
-                                    .value_name("SCALE")
-                                    .help("Set scale size for the screen")
-                                    .takes_value(true))
-                        .arg(Arg::with_name("debug")
-                                    .short("d")
-                                    .long("debug")
-                                    .help("Turn debugging information on"))
-                        .arg(Arg::with_name("rom")
-                                    .help("Input rom for the emulator")
-                                    .index(1)
-                                    .required(true))
-                        .get_matches();
-
-    let mut scale = 3;
-    if let Some(o) = matches.value_of("scale") {
-        scale = o.parse::<u32>().unwrap();
-    }
-
-    let debugging = matches.is_present("debug");
-
-    let mut file = "";
-    if let Some(c) = matches.value_of("rom") {
-         file = c;
-    }
-
+    let options = opt::parse_options().unwrap();
     let mut machine : Machine = Machine::default();
-    let instructions = fs::read(&file).expect("Unable to read file");
+    let instructions = fs::read(&options.rom_path).expect("Unable to read file");
     for (i, instr) in instructions.iter().enumerate() {
         machine.write_mem((START_ADDR + i) as u16, *instr);
     }
