@@ -19,14 +19,24 @@ cargo run <chip8-rom>
 ```
 
 ## Emulator
-To run a chip8 rom:
+#### How to use the emulator
 ```
-cd emulator 
-cargo run <chip8-rom>
-```
-For the moment the default scale of the screen is 3.
-I will add a way to control this scale via the command line.
+USAGE:
+    emulator [FLAGS] [OPTIONS] <rom>
 
+FLAGS:
+    -d, --debug      Turn debugging information on
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -s, --scale <SCALE>    Set scale size for the screen
+
+ARGS:
+    <rom>    Input rom for the emulator
+```
+
+### Features
 The emulator does not have full support of a real Chip8 machine.
 Missing features:
 - Timer
