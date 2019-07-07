@@ -1,7 +1,7 @@
-mod sdl;
-
 extern crate sdl2; 
 extern crate queues;
+
+use crate::emulator::sdl;
 
 use std::fmt;
 use sdl2::video::Window;
@@ -32,6 +32,7 @@ pub struct Machine {
     canvas : Canvas<Window>,
     sdl_context : sdl2::Sdl,
     screen_timer : Instant,
+
 }
 
 impl Clone for Register {

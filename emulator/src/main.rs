@@ -1,11 +1,10 @@
 extern crate clap;
 
-mod machine;
-mod opt;
+mod emulator;
+
+use emulator::machine::{Machine, START_ADDR};
 
 use ctrlc;
-use machine::Machine;
-use machine::START_ADDR;
 use rand::Rng;
 use std::env;
 use std::fs;
@@ -17,7 +16,7 @@ fn main() -> Result<(), std::io::Error> {
     ctrlc::set_handler(move || {
         process::exit(0);
     }).expect("Error setting Ctrl-C handler");
-    let options = opt::parse_options().unwrap();
+    let options = emulator::opt::parse_options().unwrap();
     let mut machine : Machine = Machine::default();
     let instructions = fs::read(&options.rom_path).expect("Unable to read file");
     for (i, instr) in instructions.iter().enumerate() {
