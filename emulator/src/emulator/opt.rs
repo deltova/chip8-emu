@@ -1,8 +1,8 @@
 use clap::{App, Arg, SubCommand};
 
 pub struct Options {
-    debug : bool,
-    scale : u8,
+    pub debug : bool,
+    pub scale : u8,
     pub rom_path : String
 }
 

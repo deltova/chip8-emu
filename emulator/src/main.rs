@@ -7,26 +7,24 @@ use emulator::machine::{Machine, START_ADDR};
 use ctrlc;
 use rand::Rng;
 use std::env;
-use std::fs;
 use std::io::{Error, ErrorKind};
 use std::process;
 
 fn main() -> Result<(), std::io::Error> {
-    // exit if ctrl-c is received
     ctrlc::set_handler(move || {
         process::exit(0);
     }).expect("Error setting Ctrl-C handler");
     let options = emulator::opt::parse_options().unwrap();
-    let mut machine : Machine = Machine::default();
-    let instructions = fs::read(&options.rom_path).expect("Unable to read file");
-    for (i, instr) in instructions.iter().enumerate() {
-        machine.write_mem((START_ADDR + i) as u16, *instr);
-    }
+    let mut machine : Machine = Machine::new(options.scale);
+    machine.write_rom(&options.rom_path);
     loop {
         let pc = machine.pc();
         let first_byte = machine.read_mem(pc as u16);
         let sec_byte = machine.read_mem((pc + 1) as u16);
         let instruction : u16 = (first_byte as u16) << 8 | (sec_byte as u16); 
+        if options.debug {
+            println!("0x{:X}", instruction);
+        }
         dispatch_interpretor(instruction, &mut machine);
     }
 }

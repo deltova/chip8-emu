@@ -4,6 +4,7 @@ extern crate queues;
 use crate::emulator::sdl;
 
 use std::fmt;
+use std::fs;
 use sdl2::video::Window;
 use sdl2::render::Canvas; 
 use queues::*;
@@ -30,6 +31,7 @@ pub struct Machine {
     stack : Vec<usize>,
     pc : usize,
     canvas : Canvas<Window>,
+    screen_scale : u8,
     sdl_context : sdl2::Sdl,
     screen_timer : Instant,
 
@@ -68,23 +70,6 @@ impl Default for Memory {
     }
 }
 
-impl Default for Machine {
-    #[inline]
-    fn default() -> Machine {
-        let (canvas, context) = sdl::init_sdl();
-        let machine = Machine {
-            registers:  vec![Register::default(); 17],
-            stack:  vec![0, 24],
-            reg_i: 0,
-            memory: Memory::default(),
-            pc: START_ADDR,
-            canvas: canvas,
-            sdl_context: context,
-            screen_timer: Instant::now(),
-        };
-        machine
-    }
-}
 impl fmt::Display for Machine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "register i: 0x{:X}\npc: {}\ngeneral registers\n",
@@ -98,6 +83,25 @@ impl fmt::Display for Machine {
 }
 
 impl Machine {
+    pub fn new(scale: u8) -> Machine {
+        let (canvas, context) = sdl::init_sdl(scale);
+        let machine = Machine {
+            registers:  vec![Register::default(); 17],
+            stack:  vec![0, 24],
+            reg_i: 0,
+            memory: Memory::default(),
+            pc: START_ADDR,
+            canvas: canvas,
+            screen_scale : scale,
+            sdl_context: context,
+            screen_timer: Instant::now(),
+        };
+        machine
+    }
+    pub fn set_screen_scale(&mut self, scale : u8) {
+        self.screen_scale = scale;
+    }
+     
     pub fn pc(&self) -> usize {
         self.pc
     }
@@ -163,7 +167,8 @@ impl Machine {
                 let pixel = line & mask;
                 //set pixel
                 if pixel != 0 {
-                    rectangles.push(sdl::draw_pixel(x + col, y + row, &mut self.canvas));
+                    rectangles.push(sdl::draw_pixel(x + col, y + row, &mut self.canvas,
+                                                    self.screen_scale));
                 }
                 // shift the mask to the left
                 mask = mask >> 1;
@@ -179,8 +184,16 @@ impl Machine {
         }
         self.screen_timer = Instant::now();
     }
+
     pub fn dump(&self) {
         print!("{}", self);
+    }
+
+    pub fn write_rom(&mut self, rom_path: &str) {
+        let instructions = fs::read(&rom_path).expect("Unable to read file");
+        for (i, instr) in instructions.iter().enumerate() {
+            self.write_mem((START_ADDR + i) as u16, *instr);
+        }
     }
 }
 
