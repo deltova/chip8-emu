@@ -140,7 +140,8 @@ fn setter_regs(instruction: (u16, u16, u16, u16), machine : &mut Machine) {
                         2 => regval_x & regval_y,
                         3 => regval_x ^ regval_y,
                         4 => regval_x + regval_y,
-                        5 => regval_x - regval_y,
+                        5 => if regval_x > regval_y {regval_x - regval_y}
+                             else {(256 + regval_x as u16 - regval_y as u16) as u8},
                         6 => regval_x >> 1,
                         7 => regval_y - regval_x ,
                         0xE => regval_x <<  1,
