@@ -3,6 +3,7 @@ extern crate clap;
 mod emulator;
 
 use emulator::machine::{Machine, START_ADDR};
+use emulator::debug::print_instr;
 
 use ctrlc;
 use rand::Rng;
@@ -16,6 +17,7 @@ fn main() -> Result<(), std::io::Error> {
     }).expect("Error setting Ctrl-C handler");
     let options = emulator::opt::parse_options().unwrap();
     let mut machine : Machine = Machine::new(options.scale);
+    machine.init_timer(None);
     machine.write_rom(&options.rom_path);
     loop {
         let pc = machine.pc();
@@ -23,10 +25,11 @@ fn main() -> Result<(), std::io::Error> {
         let sec_byte = machine.read_mem((pc + 1) as u16);
         let instruction : u16 = (first_byte as u16) << 8 | (sec_byte as u16); 
         if options.debug {
-            println!("0x{:X}", instruction);
+            print_instr( instruction )
         }
         dispatch_interpretor(instruction, &mut machine);
     }
+    machine.join_timer();
 }
 
 fn dispatch_interpretor(instruction: u16, machine: &mut Machine) {
@@ -34,8 +37,7 @@ fn dispatch_interpretor(instruction: u16, machine: &mut Machine) {
                        (instruction & 0xF0) >> 4, instruction & 0xF);
     match instr_tuple {
         (0, b, c, d) => match (b, c, d) {
-                (0, 0xE, 0) => machine.clear_screen(),
-                (0, 0xE, 0xE) => machine.returner(),
+                (0, 0xE, 0) => machine.clear_screen(), (0, 0xE, 0xE) => machine.returner(),
                 (_, _, _) => println!("instruction call RCA implemented"),
             }
         (1, b, c, d) => {
@@ -51,8 +53,13 @@ fn dispatch_interpretor(instruction: u16, machine: &mut Machine) {
         // set reg
         (6, b, c, d) => machine.set_reg(b as usize, (c << 4 | d) as u8),
         // += reg
-        (7, b, c, d) => machine.set_reg(b as usize,
-                                        machine.get_reg(b as usize) + (c << 4 | d) as u8),
+        (7, b, c, d) => {
+                            let mut result = machine.get_reg(b as usize)  as u16 + (c << 4 | d) as u16;
+                            if result >= 256 {
+                                result -= 256;
+                            }
+                            machine.set_reg(b as usize, result as u8);
+                        }
         (8, b, c, d) => match (b, c, d) {
                 (_, _, 0 ... 7) => setter_regs(instr_tuple, machine),
                 (_, _, _) => setter_regs(instr_tuple, machine),
@@ -64,9 +71,9 @@ fn dispatch_interpretor(instruction: u16, machine: &mut Machine) {
         (0xD , b, c, d) => machine.draw(b as u8, c as u8, d as u8),
         (0xE , _, 9, 0xE) => println!("instruction key eq implemented"),
         (0xE , _, 0xA, 1) => println!("instruction key diff implemented"),
-        (0xF , _, 0, 7) => println!("instruction get delay implemented"),
+        (0xF , b, 0, 7) => machine.get_time(b as u8),
         (0xF , _, 0, 0xA) => println!("instruction get_key implemented"),
-        (0xF , _, 1, 5) => println!("instruction timer implemented"),
+        (0xF , b, 1, 5) => machine.init_timer(Some(b as u8)), 
         (0xF , _, 1, 8) => println!("instruction sound implemented"),
         (0xF , b, 1, 0xE) => machine.set_i(machine.get_i() + machine.get_reg(b as usize) as u16),
         (0xF , _, 2, 9) => println!("instruction load sprite implemented"),

@@ -11,10 +11,20 @@ use queues::*;
 use std::vec::Vec;
 use std::time::Instant;
 use std::time::Duration;
+
+use std::io::BufReader;
+use std::{thread, time};
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+
 pub const START_ADDR: usize = 512;
 const SIZE_INSTR: usize = 2;
 // 60Hz
 static REFRESH_RATE: u32 = 1000 / 60;
+
+struct Timer {
+    pub time : u8,
+}
 
 struct Register {
     data :u8,
@@ -34,7 +44,10 @@ pub struct Machine {
     screen_scale : u8,
     sdl_context : sdl2::Sdl,
     screen_timer : Instant,
-
+    threadHandle : Option<thread::JoinHandle<()>>,
+    rx : Option<Receiver<u8>>,
+    tx : Option<Sender<()>>,
+    
 }
 
 impl Clone for Register {
@@ -46,9 +59,7 @@ impl Clone for Register {
     }
 }
 
-impl Default for Register {
-    #[inline]
-    fn default() -> Register {
+impl Default for Register { #[inline] fn default() -> Register {
         Register {
             data: 0,
         }
@@ -82,6 +93,19 @@ impl fmt::Display for Machine {
     }
 }
 
+fn run_timer(time : &mut Timer, rx : &Receiver<()>, tx : &Sender<u8>) {
+    loop {
+        thread::sleep( time::Duration::from_secs(1));
+        if time.time != 0 {
+            time.time -= 1;
+        }
+        if !rx.try_recv().is_err() {
+            tx.send(time.time).unwrap();
+        }
+    }
+}
+
+
 impl Machine {
     pub fn new(scale: u8) -> Machine {
         let (canvas, context) = sdl::init_sdl(scale);
@@ -95,6 +119,9 @@ impl Machine {
             screen_scale : scale,
             sdl_context: context,
             screen_timer: Instant::now(),
+            threadHandle: None,
+            rx : None,
+            tx : None,
         };
         machine
     }
@@ -139,12 +166,12 @@ impl Machine {
     }
     pub fn call(&mut self, addr: u16) {
         self.stack.push(self.pc);
-        self.pc = addr as usize + START_ADDR;
+        self.pc = addr as usize;
     }
 
     pub fn returner(&mut self) {
         let addr_ret = self.stack.pop().expect("cant return without a first call");
-        self.pc = START_ADDR;
+        self.pc = addr_ret;
     }
 
     pub fn clear_screen(&mut self) {
@@ -193,6 +220,36 @@ impl Machine {
         let instructions = fs::read(&rom_path).expect("Unable to read file");
         for (i, instr) in instructions.iter().enumerate() {
             self.write_mem((START_ADDR + i) as u16, *instr);
+        }
+    }
+
+    pub fn init_timer(&mut self, reg : Option<u8>) {
+        let (time_sender, time_receiver) = mpsc::channel();
+        let (notification_sender, notification_receiver) = mpsc::channel();
+        let mut time = Timer{time: 10};
+        if let Some(register) = reg {
+            time.time = self.get_reg(register as usize);
+        }
+        self.threadHandle = Some(thread::spawn(move || {
+            run_timer(&mut time, &notification_receiver, &time_sender);
+        }));
+        self.tx = Some(notification_sender);
+        self.rx = Some(time_receiver);
+    }
+
+    pub fn get_time(&mut self, reg: u8) {
+        if let Some(sender) = self.tx.take() {
+            sender.send(()).unwrap();
+        }
+        if let Some(receiver) = self.rx.take() {
+            self.set_reg(reg as usize, receiver.recv().unwrap());
+        }
+
+    }
+
+    pub fn join_timer(&mut self) {
+        if let Some(handle) = self.threadHandle.take() {
+            handle.join().unwrap();
         }
     }
 }
