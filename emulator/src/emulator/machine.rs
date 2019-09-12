@@ -1,21 +1,21 @@
-extern crate sdl2; 
 extern crate queues;
+extern crate sdl2;
 
 use crate::emulator::sdl;
 
+use queues::*;
+use sdl2::render::Canvas;
+use sdl2::video::Window;
 use std::fmt;
 use std::fs;
-use sdl2::video::Window;
-use sdl2::render::Canvas; 
-use queues::*;
-use std::vec::Vec;
-use std::time::Instant;
 use std::time::Duration;
+use std::time::Instant;
+use std::vec::Vec;
 
 use std::io::BufReader;
-use std::{thread, time};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
+use std::{thread, time};
 
 pub const START_ADDR: usize = 512;
 const SIZE_INSTR: usize = 2;
@@ -23,46 +23,43 @@ const SIZE_INSTR: usize = 2;
 static REFRESH_RATE: u32 = 1000 / 60;
 
 struct Timer {
-    pub time : u8,
+    pub time: u8,
 }
 
 struct Register {
-    data :u8,
+    data: u8,
 }
 
 struct Memory {
-    addr_space : Vec<u8>, 
+    addr_space: Vec<u8>,
 }
 
 pub struct Machine {
-    reg_i : u16,
-    registers : Vec<Register>,
+    reg_i: u16,
+    registers: Vec<Register>,
     memory: Memory,
-    stack : Vec<usize>,
-    pc : usize,
-    canvas : Canvas<Window>,
-    screen_scale : u8,
-    sdl_context : sdl2::Sdl,
-    screen_timer : Instant,
-    threadHandle : Option<thread::JoinHandle<()>>,
-    rx : Option<Receiver<u8>>,
-    tx : Option<Sender<()>>,
-    
+    stack: Vec<usize>,
+    pc: usize,
+    canvas: Canvas<Window>,
+    screen_scale: u8,
+    sdl_context: sdl2::Sdl,
+    screen_timer: Instant,
+    threadHandle: Option<thread::JoinHandle<()>>,
+    rx: Option<Receiver<u8>>,
+    tx: Option<Sender<()>>,
 }
 
 impl Clone for Register {
     #[inline]
-    fn clone(&self) ->  Self {
-        Register {
-            data: self.data,
-        }
+    fn clone(&self) -> Self {
+        Register { data: self.data }
     }
 }
 
-impl Default for Register { #[inline] fn default() -> Register {
-        Register {
-            data: 0,
-        }
+impl Default for Register {
+    #[inline]
+    fn default() -> Register {
+        Register { data: 0 }
     }
 }
 
@@ -76,16 +73,19 @@ impl Default for Memory {
     #[inline]
     fn default() -> Memory {
         Memory {
-            addr_space: vec![0; 1000],
+            addr_space: vec![0; 0x1000],
         }
     }
 }
 
 impl fmt::Display for Machine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "register i: 0x{:X}\npc: {}\ngeneral registers\n",
-               self.reg_i,
-               self.pc).expect("failed writing on stdout");
+        write!(
+            f,
+            "register i: 0x{:X}\npc: {}\ngeneral registers\n",
+            self.reg_i, self.pc
+        )
+        .expect("failed writing on stdout");
         for (i, reg) in self.registers.iter().enumerate() {
             write!(f, "reg{} = {}\n", i, reg).expect("failed writing on stdout");
         }
@@ -93,9 +93,9 @@ impl fmt::Display for Machine {
     }
 }
 
-fn run_timer(time : &mut Timer, rx : &Receiver<()>, tx : &Sender<u8>) {
+fn run_timer(time: &mut Timer, rx: &Receiver<()>, tx: &Sender<u8>) {
     loop {
-        thread::sleep( time::Duration::from_secs(1));
+        thread::sleep(time::Duration::from_secs(1));
         if time.time != 0 {
             time.time -= 1;
         }
@@ -105,30 +105,29 @@ fn run_timer(time : &mut Timer, rx : &Receiver<()>, tx : &Sender<u8>) {
     }
 }
 
-
 impl Machine {
     pub fn new(scale: u8) -> Machine {
         let (canvas, context) = sdl::init_sdl(scale);
         let machine = Machine {
-            registers:  vec![Register::default(); 17],
-            stack:  vec![0, 24],
+            registers: vec![Register::default(); 17],
+            stack: vec![0, 24],
             reg_i: 0,
             memory: Memory::default(),
             pc: START_ADDR,
             canvas: canvas,
-            screen_scale : scale,
+            screen_scale: scale,
             sdl_context: context,
             screen_timer: Instant::now(),
             threadHandle: None,
-            rx : None,
-            tx : None,
+            rx: None,
+            tx: None,
         };
         machine
     }
-    pub fn set_screen_scale(&mut self, scale : u8) {
+    pub fn set_screen_scale(&mut self, scale: u8) {
         self.screen_scale = scale;
     }
-     
+
     pub fn pc(&self) -> usize {
         self.pc
     }
@@ -161,7 +160,7 @@ impl Machine {
         self.memory.write_mem(idx, val);
     }
 
-    pub fn read_mem(&mut self, idx: u16) -> u8{
+    pub fn read_mem(&mut self, idx: u16) -> u8 {
         self.memory.read_mem(idx)
     }
     pub fn call(&mut self, addr: u16) {
@@ -182,7 +181,7 @@ impl Machine {
         let x = self.get_reg(reg1 as usize);
         let y = self.get_reg(reg2 as usize);
         let i = self.get_i();
-        let mut rectangles = Vec::new(); 
+        let mut rectangles = Vec::new();
         // for each row of the sprite
         for row in 0..n {
             // get line of pixel from memory
@@ -190,18 +189,24 @@ impl Machine {
             // go through each pixel of the line
             let mut mask = 1 << 7;
             for col in 0..8 {
-                // mask all the bits expect the current one 
+                // mask all the bits expect the current one
                 let pixel = line & mask;
                 //set pixel
                 if pixel != 0 {
-                    rectangles.push(sdl::draw_pixel(x + col, y + row, &mut self.canvas,
-                                                    self.screen_scale));
+                    rectangles.push(sdl::draw_pixel(
+                        x + col,
+                        y + row,
+                        &mut self.canvas,
+                        self.screen_scale,
+                    ));
                 }
                 // shift the mask to the left
                 mask = mask >> 1;
             }
         }
-        self.canvas.fill_rects(&rectangles).expect("failed rendering rects for texture");
+        self.canvas
+            .fill_rects(&rectangles)
+            .expect("failed rendering rects for texture");
         self.canvas.present();
         let duration = self.screen_timer.elapsed().as_millis() as u32;
         // dont sleep if the rendering time is greater than the refresh rate
@@ -223,10 +228,10 @@ impl Machine {
         }
     }
 
-    pub fn init_timer(&mut self, reg : Option<u8>) {
+    pub fn init_timer(&mut self, reg: Option<u8>) {
         let (time_sender, time_receiver) = mpsc::channel();
         let (notification_sender, notification_receiver) = mpsc::channel();
-        let mut time = Timer{time: 10};
+        let mut time = Timer { time: 10 };
         if let Some(register) = reg {
             time.time = self.get_reg(register as usize);
         }
@@ -242,9 +247,12 @@ impl Machine {
             sender.send(()).unwrap();
         }
         if let Some(receiver) = self.rx.take() {
-            self.set_reg(reg as usize, receiver.recv().unwrap());
+            let val = receiver.recv().unwrap();
+            self.set_reg(reg as usize, val);
         }
-
+        else {
+            self.set_reg(reg as usize, 0);
+        }
     }
 
     pub fn join_timer(&mut self) {
@@ -258,7 +266,7 @@ impl Memory {
     pub fn write_mem(&mut self, idx: u16, val: u8) {
         self.addr_space[idx as usize] = val;
     }
-    pub fn read_mem(&mut self, idx: u16) -> u8{
+    pub fn read_mem(&mut self, idx: u16) -> u8 {
         self.addr_space[idx as usize]
     }
 }
